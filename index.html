@@ -268,7 +268,7 @@
                     <input type="radio" id="light-any" name="lighting" value="any" checked>
                     <label for="light-any">כללי</label>
                     <input type="radio" id="light-dawn" name="lighting" value="dawn">
-                    <label for="light-dawn">שחר</label> <!-- תיקון שגיאת הכתיב כאן -->
+                    <label for="light-dawn">שחר</label> 
                     <input type="radio" id="light-golden" name="lighting" value="golden">
                     <label for="light-golden">שעת הזהב</label>
                     <input type="radio" id="light-dusk" name="lighting" value="dusk">
@@ -361,6 +361,9 @@
     const apiKey = "AIzaSyAzptP7SdGHhNXyUSbT6lhhQDA3CZHoohQ"; 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
+    // Variable to store the last generated prompt
+    let lastGeneratedPrompt = "";
+
     // Sleep function (for Exponential Backoff)
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -382,9 +385,9 @@
                 if (!response.ok) {
                     const errorText = await response.text();
                     statusDisplay.innerText = `סטטוס: שגיאת HTTP! קוד: ${response.status}. תגובה: ${errorText.substring(0, 100)}...`;
-                    if (response.status === 429 || response.status >= 500) {
+                    if (response.status === 429 || response.status >= 500) { // Too Many Requests or server errors
                         if (i < retries - 1) {
-                            await sleep(delay * Math.pow(2, i));
+                            await sleep(delay * Math.pow(2, i)); // Exponential delay
                             continue;
                         }
                     }
@@ -513,7 +516,13 @@
             combinedInstructions += ` שלב אלמנטים בלתי צפויים, מוזרים, או חסרי קשר הגיוני באופן יצירתי ומפתיע, כדי ליצור תמונה ייחודית לחלוטין.`;
         }
 
-        const fullUserPrompt = `${userPromptCore} ${lengthInstruction} ודא שהיא שונה לחלוטין מכל הנחייה קודמת ומשלבת רעיונות מקוריים ובלתי צפויים. ${combinedInstructions}`;
+        // Add instruction to be radically different from the last prompt
+        let differenceInstruction = "";
+        if (lastGeneratedPrompt) {
+            differenceInstruction = ` ההנחיה החדשה חייבת להיות שונה באופן קיצוני, בלתי צפויה, ומנוגדת במהותה להנחיה הקודמת: "${lastGeneratedPrompt.substring(0, 150)}..."`;
+        }
+
+        const fullUserPrompt = `${userPromptCore} ${lengthInstruction} ודא שהיא שונה לחלוטין מכל הנחייה קודמת ומשלבת רעיונות מקוריים ובלתי צפויים.${differenceInstruction} ${combinedInstructions}`;
 
         // Show loading animation and disable button
         loader.classList.add('active');
@@ -543,6 +552,9 @@
                     }
                     generatedText = truncatedPrompt + "...";
                 }
+                
+                // Store the newly generated prompt for the next request
+                lastGeneratedPrompt = generatedText;
 
                 promptDisplay.innerText = generatedText; 
             } else {
