@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בדיקת API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            background-color: #f0f0f0;
+            direction: rtl;
+        }
+        button {
+            padding: 15px 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 1.1em;
+            color: #333;
+            min-height: 50px; /* כדי שיהיה מקום להודעות */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            border-radius: 8px;
+            max-width: 600px;
+            width: 90%;
+            word-wrap: break-word;
+        }
+        .loading {
+            color: #007bff;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>בדיקת חיבור ל-Gemini API</h1>
+    <button onclick="testApi()">לחץ לבדיקה</button>
+    <div id="status">סטטוס: ממתין לבדיקה...</div>
+
+    <script type="module">
+        // API settings
+        // אנא הדבק כאן את מפתח ה-API שלך:
+        const apiKey = "AIzaSyAzptP7SdGHhNXyUSbT6lhhQDA3CZHoohQ"; 
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        // Sleep function (for Exponential Backoff)
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Function to call API with Exponential Backoff
+        async function callApiWithBackoff(payload, retries = 5, delay = 1000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429 || response.status >= 500) {
+                            if (i < retries - 1) {
+                                await sleep(delay * Math.pow(2, i));
+                                continue;
+                            }
+                        }
+                        const errorText = await response.text();
+                        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    if (i < retries - 1) {
+                        await sleep(delay * Math.pow(2, i));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+        }
+
+        // Test function
+        async function testApi() {
+            const statusDisplay = document.getElementById('status');
+            statusDisplay.className = 'loading';
+            statusDisplay.innerText = 'סטטוס: מתחבר ל-AI... אנא המתן...';
+
+            try {
+                let chatHistory = [];
+                const testPrompt = `האם אתה מודל שפה גדול? ענה בחיוב או בשלילה בלבד.`; // פרומפט פשוט לבדיקה
+                chatHistory.push({ role: "user", parts: [{ text: testPrompt }] });
+
+                const payload = { contents: chatHistory };
+
+                const result = await callApiWithBackoff(payload);
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const responseText = result.candidates[0].content.parts[0].text;
+                    statusDisplay.className = 'success';
+                    statusDisplay.innerText = `סטטוס: הצלחה! תגובת AI: "${responseText.substring(0, 100)}..."`; // הצג חלק מהתגובה
+                } else {
+                    statusDisplay.className = 'error';
+                    statusDisplay.innerText = 'סטטוס: שגיאה! מבנה תגובת AI לא צפוי.';
+                    console.error("Unexpected API response structure:", result);
+                }
+            } catch (error) {
+                statusDisplay.className = 'error';
+                statusDisplay.innerText = `סטטוס: שגיאה בחיבור! ${error.message}`;
+                console.error("Error during API test:", error);
+            }
+        }
+    </script>
+
+</body>
+</html>
