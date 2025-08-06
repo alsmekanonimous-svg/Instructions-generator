@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>מחולל הנחיות תמונה יצירתי במיוחד</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
             background-color: #f0f2f5;
             color: #333;
             display: flex;
@@ -16,72 +17,205 @@
             margin: 0;
             text-align: center;
             direction: rtl; /* יישור כללי לימין */
+            padding: 20px;
+            box-sizing: border-box;
         }
         .container {
             background: white;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            max-width: 800px;
-            width: 90%;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+            max-width: 900px;
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 25px;
         }
         h1 {
             color: #1a73e8;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 2.2em;
+            font-weight: 700;
         }
+        .options-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .option-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: calc(50% - 15px); /* Two items per row on larger screens */
+            max-width: 250px; /* Limit individual item width */
+        }
+        .option-item label {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95em;
+        }
+        select, input[type="radio"] + label {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            font-size: 1em;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: right;
+        }
+        select:focus, input[type="radio"]:checked + label {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+            background-color: #e8f0fe;
+        }
+        input[type="radio"] {
+            display: none; /* Hide default radio button */
+        }
+        input[type="radio"] + label:hover {
+            background-color: #eef;
+        }
+        .radio-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+        .radio-group label {
+            flex-grow: 1;
+            text-align: center;
+            min-width: 80px; /* Ensure buttons are not too small */
+        }
+
         #prompt-display {
             background-color: #e8f0fe;
             border: 1px solid #1a73e8;
-            border-radius: 8px;
-            padding: 20px;
-            min-height: 120px;
+            border-radius: 10px;
+            padding: 25px;
+            min-height: 150px; /* הגדלנו גובה מינימלי */
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2em;
+            font-size: 1.25em;
             text-align: right; /* יישור טקסט לימין בתוך התיבה */
-            line-height: 1.6;
+            line-height: 1.7;
             word-wrap: break-word;
             overflow-wrap: break-word;
             width: 100%;
-            box-sizing: border-box; /* כלול פדינג ובורדר ברוחב */
+            box-sizing: border-box;
+            color: #222;
+            font-weight: 400;
         }
         button {
             background-color: #1a73e8;
             color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 1.1em;
-            border-radius: 8px;
+            padding: 15px 35px;
+            font-size: 1.15em;
+            border-radius: 10px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.1s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 12px;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
         button:hover {
             background-color: #155cb0;
+            transform: translateY(-2px);
         }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #1a73e8;
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        button:disabled {
+            background-color: #a0c3f0;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Loading Animation */
+        .loading-animation {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-            display: none; /* מוסתר כברירת מחדל */
+            background: linear-gradient(45deg, #1a73e8, #673ab7); /* Gradient colors */
+            animation: pulse 1.5s infinite ease-in-out;
+            display: none; /* Hidden by default */
+            position: relative;
         }
-        .loader.active {
+        .loading-animation.active {
             display: block;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .loading-animation::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            background-color: white;
+            transform: translate(-50%, -50%);
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.7;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 0.7;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                gap: 15px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .options-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .option-item {
+                width: 100%;
+                max-width: none;
+            }
+            .radio-group {
+                flex-direction: column;
+            }
+            .radio-group label {
+                width: 100%;
+            }
+            #prompt-display {
+                font-size: 1.1em;
+                padding: 15px;
+                min-height: 100px;
+            }
+            button {
+                padding: 12px 25px;
+                font-size: 1em;
+            }
         }
     </style>
 </head>
@@ -89,10 +223,43 @@
 
 <div class="container">
     <h1>מחולל הנחיות תמונה יצירתי במיוחד עם AI 🤖</h1>
+
+    <div class="options-group">
+        <div class="option-item">
+            <label for="creativity-level">רמת יצירתיות:</label>
+            <div class="radio-group">
+                <input type="radio" id="creativity-regular" name="creativity" value="regular" checked>
+                <label for="creativity-regular">רגיל</label>
+                <input type="radio" id="creativity-genius" name="creativity" value="genius">
+                <label for="creativity-genius">גאוני</label>
+                <input type="radio" id="creativity-theoretical" name="creativity" value="theoretical">
+                <label for="creativity-theoretical">תיאורטי</label>
+                <input type="radio" id="creativity-super-creative" name="creativity" value="super-creative">
+                <label for="creativity-super-creative">יצירתי במיוחד</label>
+                <input type="radio" id="creativity-situation" name="creativity" value="situation">
+                <label for="creativity-situation">סיטואציה/פעולה</label>
+                <input type="radio" id="creativity-random" name="creativity" value="random">
+                <label for="creativity-random">רנדומלי במיוחד</label>
+            </div>
+        </div>
+
+        <div class="option-item">
+            <label for="prompt-length">אורך הנחיה:</label>
+            <div class="radio-group">
+                <input type="radio" id="length-short" name="length" value="short" checked>
+                <label for="length-short">קצרה</label>
+                <input type="radio" id="length-medium" name="length" value="medium">
+                <label for="length-medium">בינונית</label>
+                <input type="radio" id="length-long" name="length" value="long">
+                <label for="length-long">ארוכה</label>
+            </div>
+        </div>
+    </div>
+
     <div id="prompt-display">לחץ על הכפתור כדי לקבל הנחייה חדשה וייחודית!</div>
     <button onclick="generatePrompt()">
         <span id="button-text">צור הנחייה חדשה</span>
-        <div id="loader" class="loader"></div>
+        <div id="loader" class="loading-animation"></div>
     </button>
 </div>
 
@@ -108,7 +275,7 @@
 
     // Function to call API with Exponential Backoff
     async function callApiWithBackoff(payload, retries = 5, delay = 1000) {
-        const statusDisplay = document.getElementById('prompt-display'); // גישה לתיבת הסטטוס
+        const statusDisplay = document.getElementById('prompt-display'); 
         
         for (let i = 0; i < retries; i++) {
             try {
@@ -120,11 +287,11 @@
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text(); // נסה לקבל את טקסט השגיאה מהתגובה
+                    const errorText = await response.text();
                     statusDisplay.innerText = `סטטוס: שגיאת HTTP! קוד: ${response.status}. תגובה: ${errorText.substring(0, 100)}...`;
-                    if (response.status === 429 || response.status >= 500) { // Too Many Requests or server errors
+                    if (response.status === 429 || response.status >= 500) {
                         if (i < retries - 1) {
-                            await sleep(delay * Math.pow(2, i)); // Exponential delay
+                            await sleep(delay * Math.pow(2, i));
                             continue;
                         }
                     }
@@ -152,6 +319,49 @@
         const buttonText = document.getElementById('button-text');
         const generateButton = document.querySelector('button');
 
+        // Get selected creativity level and length
+        const creativityLevel = document.querySelector('input[name="creativity"]:checked').value;
+        const promptLength = document.querySelector('input[name="length"]:checked').value;
+
+        // Set prompt length constraints for the AI
+        let lengthInstruction = "";
+        let maxLength = 480; // Overall max length
+        if (promptLength === "short") {
+            lengthInstruction = "ההנחיה צריכה להיות קצרה ותמציתית, עד 100 תווים.";
+            maxLength = 100;
+        } else if (promptLength === "medium") {
+            lengthInstruction = "ההנחיה צריכה להיות באורך בינוני, בין 100 ל-250 תווים.";
+            maxLength = 250;
+        } else { // long
+            lengthInstruction = "ההנחיה צריכה להיות ארוכה ומפורטת, בין 250 ל-480 תווים.";
+            maxLength = 480;
+        }
+
+        // Craft the user prompt based on creativity level
+        let userPromptCore = "";
+        switch (creativityLevel) {
+            case "regular":
+                userPromptCore = `צור הנחייה ייחודית, יצירתית ומפורטת ליצירת תמונה. ההנחיה צריכה לכלול נושא, סגנון, אווירה, צבעים ואפקטים מיוחדים.`;
+                break;
+            case "genius":
+                userPromptCore = `צור הנחייה גאונית, חכמה, מעוררת מחשבה ובעלת עומק פילוסופי או קונספטואלי ליצירת תמונה. שלב אלמנטים מורכבים ורעיונות מופשטים באופן ויזואלי.`;
+                break;
+            case "theoretical":
+                userPromptCore = `צור הנחייה ליצירת תמונה המתארת משהו שקיים רק בתיאוריה, בפיזיקה קוונטית, או במציאות בלתי אפשרית. תאר סיטואציה סוריאליסטית, פרדוקסלית, או מושגים מדעיים מורכבים באופן ויזואלי.`;
+                break;
+            case "super-creative":
+                userPromptCore = `צור הנחייה יצירתית במיוחד, פרועה, בלתי צפויה ומלאת הברקות ליצירת תמונה. שלב אלמנטים מנוגדים, מוזרים, מצחיקים או סוריאליסטיים בצורה מקורית. דוגמאות: "פינגווין משחק שחמט בבריכת כדורים", "חתול אסטרונאוט מנגן בגיטרה על הירח", "עץ עתיק ששורשיו הם מנהרות תת-קרקעיות זוהרות". חרוג מהרגיל.`;
+                break;
+            case "situation":
+                userPromptCore = `צור הנחייה המתארת סיטואציה דינמית ופעולה מרכזית ליצירת תמונה. התמקד באינטראקציה בין דמויות/עצמים/סביבה. לדוגמה: "ארנב לבוש בחליפת חלל רודף אחרי גזר ענק על מאדים", "ספרייה עתיקה שבה ספרים מרחפים באוויר ויוצרים גשרים".`;
+                break;
+            case "random":
+                userPromptCore = `צור הנחייה רנדומלית במיוחד ליצירת תמונה, על ידי שילוב מילים ומושגים שאינם קשורים זה לזה כלל, אך באופן כלשהו יוצרים תמונה ויזואלית מפתיעה וקוהרנטית. לדוגמה: "מכונת כביסה רוקדת בקרקס תת-ימי עם תאורת ניאון סגולה". התוצאה צריכה להיות בלתי צפויה לחלוטין.`;
+                break;
+        }
+
+        const fullUserPrompt = `${userPromptCore} ${lengthInstruction} ודא שהיא שונה לחלוטין מכל הנחייה קודמת ומשלבת רעיונות מקוריים ובלתי צפויים.`;
+
         // Show loading animation and disable button
         loader.classList.add('active');
         buttonText.textContent = 'יוצר הנחייה...';
@@ -160,28 +370,18 @@
 
         try {
             let chatHistory = [];
-            // הפרומפט המעודכן למודל ה-AI - דגש על יצירתיות וגיוון!
-            const userPrompt = `צור הנחייה ייחודית, מקורית, יצירתית ומפורטת ליצירת תמונה. ההנחייה צריכה להיות מקסימום 480 תווים.
-            התמקד ב:
-            - **רעיונות בלתי צפויים ומוזרים:** שילובים של נושאים, עצמים וסיטואציות שלא נראו קודם.
-            - **סיטואציות ופעולות דינמיות:** תאר מה קורה בתמונה, לא רק מה יש בה.
-            - **הברקות יצירתיות:** חשוב מחוץ לקופסה. דוגמאות: "פינגווין משחק שחמט בבריכת כדורים", "חתול אסטרונאוט מנגן בגיטרה על הירח", "עץ עתיק ששורשיו הם מנהרות תת-קרקעיות זוהרות".
-            - **גיוון עצום:** ודא שכל הנחייה שונה לחלוטין מקודמתה בכל מהותה. שנה סגנונות, אווירות, תאורה, קומפוזיציה ופרטים באופן דרמטי בין הנחייה להנחייה.
-            - **הימנע מחזרתיות:** אל תשתמש באותם דפוסים או מילים חוזרות. כל הנחייה צריכה להרגיש רעננה ומפתיעה.`;
-            
-            chatHistory.push({ role: "user", parts: [{ text: userPrompt }] });
+            chatHistory.push({ role: "user", parts: [{ text: fullUserPrompt }] });
 
             const payload = { contents: chatHistory };
 
-            const result = await callApiWithBackoff(payload); // קריאה לפונקציית ה-API
+            const result = await callApiWithBackoff(payload); // Call the API function
 
             if (result.candidates && result.candidates.length > 0 &&
                 result.candidates[0].content && result.candidates[0].content.parts &&
                 result.candidates[0].content.parts.length > 0) {
                 let generatedText = result.candidates[0].content.parts[0].text;
 
-                // Ensure the prompt does not exceed 480 characters
-                const maxLength = 480;
+                // Ensure the prompt does not exceed the selected max length
                 if (generatedText.length > maxLength) {
                     let truncatedPrompt = generatedText.substring(0, maxLength - 3);
                     const lastSpaceIndex = truncatedPrompt.lastIndexOf(" ");
@@ -191,13 +391,13 @@
                     generatedText = truncatedPrompt + "...";
                 }
 
-                promptDisplay.innerText = generatedText; // הצג את ההנחייה שנוצרה
+                promptDisplay.innerText = generatedText; // Display the generated prompt
             } else {
                 promptDisplay.innerText = 'אירעה שגיאה: מבנה תגובת AI לא צפוי.';
                 console.error("Unexpected API response structure:", result);
             }
         } catch (error) {
-            promptDisplay.innerText = `שגיאה סופית: ${error.message.substring(0, 200)}...`; // הצג הודעת שגיאה סופית
+            promptDisplay.innerText = `שגיאה סופית: ${error.message.substring(0, 200)}...`; // Display final error message
             console.error("Error generating prompt:", error);
         } finally {
             // Hide loading animation and enable button
