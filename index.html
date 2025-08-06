@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מחולל הנחיות תמונה עם AI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+            direction: rtl; /* יישור כללי לימין */
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 10px;
+        }
+        #prompt-display {
+            background-color: #e8f0fe;
+            border: 1px solid #1a73e8;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            text-align: right; /* יישור טקסט לימין בתוך התיבה */
+            line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            width: 100%;
+            box-sizing: border-box; /* כלול פדינג ובורדר ברוחב */
+        }
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        button:hover {
+            background-color: #155cb0;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1a73e8;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: none; /* מוסתר כברירת מחדל */
+        }
+        .loader.active {
+            display: block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>מחולל הנחיות תמונה יצירתי עם AI 🤖</h1>
+    <div id="prompt-display">לחץ על הכפתור כדי לקבל הנחייה חדשה וייחודית!</div>
+    <button onclick="generatePrompt()">
+        <span id="button-text">צור הנחייה חדשה</span>
+        <div id="loader" class="loader"></div>
+    </button>
+</div>
+
+<script type="module">
+    // API settings
+    // Your API key has been embedded here.
+    const apiKey = "AIzaSyAzptP7SdGHhNXyUSbT6lhhQDA3CZHoohQ"; 
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+    // Sleep function (for Exponential Backoff)
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Function to call API with Exponential Backoff
+    async function callApiWithBackoff(payload, retries = 5, delay = 1000) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // If the response is not OK, retry (unless it's the last attempt)
+                    if (response.status === 429 || response.status >= 500) { // Too Many Requests or server errors
+                        if (i < retries - 1) {
+                            await sleep(delay * Math.pow(2, i)); // Exponential delay
+                            continue;
+                        }
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                if (i < retries - 1) {
+                    await sleep(delay * Math.pow(2, i)); // Exponential delay
+                } else {
+                    throw error; // Throw error if all retries fail
+                }
+            }
+        }
+    }
+
+    // Main function to generate the prompt using LLM
+    async function generatePrompt() {
+        const promptDisplay = document.getElementById('prompt-display');
+        const loader = document.getElementById('loader');
+        const buttonText = document.getElementById('button-text');
+        const generateButton = document.querySelector('button');
+
+        // Show loading animation and disable button
+        loader.classList.add('active');
+        buttonText.textContent = 'יוצר הנחייה...';
+        generateButton.disabled = true;
+        promptDisplay.innerText = 'טוען הנחייה חדשה... אנא המתן...';
+
+        try {
+            let chatHistory = [];
+            const userPrompt = `צור הנחייה ייחודית, יצירתית ומפורטת ליצירת תמונה. ההנחייה צריכה להיות מקסימום 480 תווים, ולכלול נושא, סגנון, אווירה, צבעים ואפקטים מיוחדים. ודא שהיא שונה לחלוטין מכל הנחייה קודמת ומשלבת רעיונות מקוריים ובלתי צפויים.`;
+            chatHistory.push({ role: "user", parts: [{ text: userPrompt }] });
+
+            const payload = { contents: chatHistory };
+
+            const result = await callApiWithBackoff(payload);
+
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                let generatedText = result.candidates[0].content.parts[0].text;
+
+                // Ensure the prompt does not exceed 480 characters
+                const maxLength = 480;
+                if (generatedText.length > maxLength) {
+                    // Find the last complete word before truncation
+                    let truncatedPrompt = generatedText.substring(0, maxLength - 3); // Truncate with space for "..."
+                    const lastSpaceIndex = truncatedPrompt.lastIndexOf(" ");
+                    if (lastSpaceIndex > -1) {
+                        truncatedPrompt = truncatedPrompt.substring(0, lastSpaceIndex);
+                    }
+                    generatedText = truncatedPrompt + "...";
+                }
+
+                promptDisplay.innerText = generatedText;
+            } else {
+                promptDisplay.innerText = 'אירעה שגיאה ביצירת ההנחייה. נסה שוב.';
+                console.error("Unexpected API response structure:", result);
+            }
+        } catch (error) {
+            promptDisplay.innerText = 'שגיאה בחיבור לשרת או ביצירת ההנחייה. נסה שוב מאוחר יותר.';
+            console.error("Error generating prompt:", error);
+        } finally {
+            // Hide loading animation and enable button
+            loader.classList.remove('active');
+            buttonText.textContent = 'צור הנחייה חדשה';
+            generateButton.disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
