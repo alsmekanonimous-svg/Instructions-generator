@@ -96,9 +96,8 @@
     </button>
 </div>
 
-<script type="module">
+<script>
     // API settings
-    // Your API key has been embedded here.
     const apiKey = "AIzaSyAzptP7SdGHhNXyUSbT6lhhQDA3CZHoohQ"; 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
@@ -109,8 +108,11 @@
 
     // Function to call API with Exponential Backoff
     async function callApiWithBackoff(payload, retries = 5, delay = 1000) {
+        const statusDisplay = document.getElementById('prompt-display'); // גישה לתיבת הסטטוס
+        
         for (let i = 0; i < retries; i++) {
             try {
+                statusDisplay.innerText = `סטטוס: מנסה להתחבר ל-AI... ניסיון ${i + 1}/${retries}`;
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -118,22 +120,26 @@
                 });
 
                 if (!response.ok) {
-                    // If the response is not OK, retry (unless it's the last attempt)
+                    const errorText = await response.text(); // נסה לקבל את טקסט השגיאה מהתגובה
+                    statusDisplay.innerText = `סטטוס: שגיאת HTTP! קוד: ${response.status}. תגובה: ${errorText.substring(0, 100)}...`;
                     if (response.status === 429 || response.status >= 500) { // Too Many Requests or server errors
                         if (i < retries - 1) {
                             await sleep(delay * Math.pow(2, i)); // Exponential delay
                             continue;
                         }
                     }
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
-
+                
+                statusDisplay.innerText = 'סטטוס: קיבלתי תגובה, מפענח נתונים...';
                 return await response.json();
+
             } catch (error) {
+                statusDisplay.innerText = `סטטוס: שגיאה כללית בחיבור! ${error.message.substring(0, 150)}...`;
                 if (i < retries - 1) {
-                    await sleep(delay * Math.pow(2, i)); // Exponential delay
+                    await sleep(delay * Math.pow(2, i));
                 } else {
-                    throw error; // Throw error if all retries fail
+                    throw error;
                 }
             }
         }
@@ -159,7 +165,7 @@
 
             const payload = { contents: chatHistory };
 
-            const result = await callApiWithBackoff(payload);
+            const result = await callApiWithBackoff(payload); // קריאה לפונקציית ה-API
 
             if (result.candidates && result.candidates.length > 0 &&
                 result.candidates[0].content && result.candidates[0].content.parts &&
@@ -169,8 +175,7 @@
                 // Ensure the prompt does not exceed 480 characters
                 const maxLength = 480;
                 if (generatedText.length > maxLength) {
-                    // Find the last complete word before truncation
-                    let truncatedPrompt = generatedText.substring(0, maxLength - 3); // Truncate with space for "..."
+                    let truncatedPrompt = generatedText.substring(0, maxLength - 3);
                     const lastSpaceIndex = truncatedPrompt.lastIndexOf(" ");
                     if (lastSpaceIndex > -1) {
                         truncatedPrompt = truncatedPrompt.substring(0, lastSpaceIndex);
@@ -178,13 +183,13 @@
                     generatedText = truncatedPrompt + "...";
                 }
 
-                promptDisplay.innerText = generatedText;
+                promptDisplay.innerText = generatedText; // הצג את ההנחייה שנוצרה
             } else {
-                promptDisplay.innerText = 'אירעה שגיאה ביצירת ההנחייה. נסה שוב.';
+                promptDisplay.innerText = 'אירעה שגיאה: מבנה תגובת AI לא צפוי.';
                 console.error("Unexpected API response structure:", result);
             }
         } catch (error) {
-            promptDisplay.innerText = 'שגיאה בחיבור לשרת או ביצירת ההנחייה. נסה שוב מאוחר יותר.';
+            promptDisplay.innerText = `שגיאה סופית: ${error.message.substring(0, 200)}...`; // הצג הודעת שגיאה סופית
             console.error("Error generating prompt:", error);
         } finally {
             // Hide loading animation and enable button
